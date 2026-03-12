@@ -350,21 +350,15 @@ private static void crearRespaldoArchivosMigrados() {
     private static void resetearBaseDeDatosSiEsNecesario() {
         try (Connection conn = ConexionSQLite.conectar();
              Statement stmt = conn.createStatement()) {
-            
-            // Verificar si existe algún problema con las tablas
-            try {
-                stmt.executeQuery("SELECT 1 FROM historial_insumos LIMIT 1");
-                stmt.executeQuery("SELECT 1 FROM despachos LIMIT 1");
-                stmt.executeQuery("SELECT 1 FROM configuracion_sistema LIMIT 1");
-                System.out.println("✅ Estructura de base de datos verificada");
-            } catch (SQLException e) {
-                System.out.println("🔄 Problemas detectados, reseteando base de datos...");
-                resetearBaseDeDatosCompleta();
-            }
+            // Verificar únicamente que SQLite responda.
+            // NOTA: no se debe borrar toda la BD por tablas faltantes,
+            // porque eso elimina usuarios válidos y rompe el login.
+            stmt.executeQuery("SELECT 1");
+            System.out.println("✅ Conexión a base de datos verificada");
             
         } catch (SQLException e) {
             System.err.println("❌ Error verificando base de datos: " + e.getMessage());
-            resetearBaseDeDatosCompleta();
+            System.out.println("🔄 Se intentará reconstruir la estructura sin eliminar datos de usuarios");
         }
     }
     
