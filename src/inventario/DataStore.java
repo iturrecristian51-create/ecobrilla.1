@@ -1856,7 +1856,6 @@ public static Producto buscarProductoEnMemoria(String nombre) {
 
         if (usuarios.isEmpty()) {
             cargarUsuarios();
-            asegurarUsuariosPorDefectoEnMemoria();
         }
 
         for (Usuario usuario : usuarios) {
