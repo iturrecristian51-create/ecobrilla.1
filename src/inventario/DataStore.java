@@ -101,6 +101,8 @@ public class DataStore {
     // ✅ SEXTO: Inicializar configuración (TU CÓDIGO ORIGINAL)
     inicializarConfiguracionSistema();
     
+    asegurarUsuariosPorDefectoEnMemoria();
+
     // ✅ Mostrar resumen final (TU CÓDIGO ORIGINAL)
     System.out.println("=== RESUMEN DE INICIALIZACIÓN ===");
     System.out.println("📊 Usuarios: " + usuarios.size());
@@ -109,6 +111,16 @@ public class DataStore {
     System.out.println("📊 Productos: " + productos.size());
     System.out.println("📊 Despachos: " + despachos.size());
     System.out.println("✅ Sistema inicializado correctamente");
+}
+
+private static void asegurarUsuariosPorDefectoEnMemoria() {
+    if (!usuarios.isEmpty()) {
+        return;
+    }
+
+    System.err.println("⚠️ No fue posible cargar usuarios desde SQLite. Se usarán usuarios por defecto en memoria.");
+    usuarios.add(new Usuario("admin", "admin123", "Administrador"));
+    usuarios.add(new Usuario("dev", "dev123", "Desarrollador"));
 }
 
 // === MÉTODOS NUEVOS PARA MIGRACIÓN (se añaden a la clase DataStore) ===
@@ -800,20 +812,24 @@ stmt.execute("""
     }
 
     private static void cargarUsuarios() {
-        usuarios.clear();
         String sql = "SELECT * FROM usuarios";
+        List<Usuario> usuariosLeidos = new ArrayList<>();
+
         try (Connection conn = ConexionSQLite.conectar();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
+
             while (rs.next()) {
                 Usuario usuario = new Usuario(
                     rs.getString("nombre_usuario"),
                     rs.getString("contrasena"),
                     rs.getString("rol")
                 );
-                usuarios.add(usuario);
+                usuariosLeidos.add(usuario);
             }
+
+            usuarios.clear();
+            usuarios.addAll(usuariosLeidos);
             System.out.println("✅ Usuarios cargados: " + usuarios.size());
         } catch (SQLException e) {
             System.err.println("❌ Error cargando usuarios: " + e.getMessage());
@@ -1830,35 +1846,27 @@ public static Producto buscarProductoEnMemoria(String nombre) {
     // === MÉTODO DE AUTENTICACIÓN ===
     public static boolean autenticar(String nombreUsuario, String contrasena) {
         if (nombreUsuario == null || contrasena == null) {
-            System.out.println("❌ Credenciales nulas");
             return false;
         }
-        
-        System.out.println("🔐 Intentando autenticar: " + nombreUsuario);
-        System.out.println("📊 Usuarios disponibles: " + usuarios.size());
-        
-        // Mostrar usuarios disponibles para debug
-        for (Usuario u : usuarios) {
-            System.out.println("   👤 " + u.getNombreUsuario() + " - " + u.getRol());
+
+        String usuarioLimpio = nombreUsuario.trim();
+        if (usuarioLimpio.isEmpty() || contrasena.isEmpty()) {
+            return false;
         }
-        
-        // Buscar el usuario en la lista cargada
+
+        if (usuarios.isEmpty()) {
+            cargarUsuarios();
+            asegurarUsuariosPorDefectoEnMemoria();
+        }
+
         for (Usuario usuario : usuarios) {
-            if (usuario.getNombreUsuario().equals(nombreUsuario)) {
-                boolean autenticado = usuario.getContrasena().equals(contrasena);
-                if (autenticado) {
-                    System.out.println("✅ Autenticación exitosa para: " + nombreUsuario);
-                    usuarioActual = usuario;
-                } else {
-                    System.out.println("❌ Contraseña incorrecta para: " + nombreUsuario);
-                    System.out.println("   🔑 Contraseña proporcionada: " + contrasena);
-                    System.out.println("   🔑 Contraseña esperada: " + usuario.getContrasena());
-                }
-                return autenticado;
+            if (usuario.getNombreUsuario().equalsIgnoreCase(usuarioLimpio)
+                    && usuario.getContrasena().equals(contrasena)) {
+                usuarioActual = usuario;
+                return true;
             }
         }
-        
-        System.out.println("❌ Usuario no encontrado: " + nombreUsuario);
+
         return false;
     }
 
