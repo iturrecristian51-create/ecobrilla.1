@@ -1830,35 +1830,26 @@ public static Producto buscarProductoEnMemoria(String nombre) {
     // === MÉTODO DE AUTENTICACIÓN ===
     public static boolean autenticar(String nombreUsuario, String contrasena) {
         if (nombreUsuario == null || contrasena == null) {
-            System.out.println("❌ Credenciales nulas");
             return false;
         }
-        
-        System.out.println("🔐 Intentando autenticar: " + nombreUsuario);
-        System.out.println("📊 Usuarios disponibles: " + usuarios.size());
-        
-        // Mostrar usuarios disponibles para debug
-        for (Usuario u : usuarios) {
-            System.out.println("   👤 " + u.getNombreUsuario() + " - " + u.getRol());
+
+        String usuarioLimpio = nombreUsuario.trim();
+        if (usuarioLimpio.isEmpty() || contrasena.isEmpty()) {
+            return false;
         }
-        
-        // Buscar el usuario en la lista cargada
+
+        if (usuarios.isEmpty()) {
+            cargarUsuarios();
+        }
+
         for (Usuario usuario : usuarios) {
-            if (usuario.getNombreUsuario().equals(nombreUsuario)) {
-                boolean autenticado = usuario.getContrasena().equals(contrasena);
-                if (autenticado) {
-                    System.out.println("✅ Autenticación exitosa para: " + nombreUsuario);
-                    usuarioActual = usuario;
-                } else {
-                    System.out.println("❌ Contraseña incorrecta para: " + nombreUsuario);
-                    System.out.println("   🔑 Contraseña proporcionada: " + contrasena);
-                    System.out.println("   🔑 Contraseña esperada: " + usuario.getContrasena());
-                }
-                return autenticado;
+            if (usuario.getNombreUsuario().equalsIgnoreCase(usuarioLimpio)
+                    && usuario.getContrasena().equals(contrasena)) {
+                usuarioActual = usuario;
+                return true;
             }
         }
-        
-        System.out.println("❌ Usuario no encontrado: " + nombreUsuario);
+
         return false;
     }
 
