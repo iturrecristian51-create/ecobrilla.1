@@ -1,12 +1,14 @@
 package inventario;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 public class DespachoGUI extends JDialog {
     private JFrame parentFrame;
@@ -22,7 +24,10 @@ public class DespachoGUI extends JDialog {
 
     private JTextField txtCantidad;
 
-    // Campos de cliente
+    // Selector de cliente (JComboBox)
+    private JComboBox<Cliente> cmbCliente;
+
+    // Campos de solo lectura — se llenan automáticamente al elegir cliente
     private JTextField txtCliente;
     private JTextField txtNIT;
     private JTextField txtTelefono;
@@ -53,9 +58,8 @@ public class DespachoGUI extends JDialog {
         // ===== PANEL IZQUIERDO (PRODUCTOS) =====
         JPanel left = new JPanel(new BorderLayout(6, 6));
         left.setBorder(BorderFactory.createTitledBorder("Productos disponibles"));
-        left.setPreferredSize(new Dimension(350, 400));
+        left.setPreferredSize(new Dimension(380, 500));
 
-        // Filtro para productos
         filtroProductos = new FiltroPanel("Buscar productos...", this::aplicarFiltroProductos);
         left.add(filtroProductos, BorderLayout.NORTH);
 
@@ -63,13 +67,10 @@ public class DespachoGUI extends JDialog {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         tablaProductos = new JTable(modelProductos);
-        
-        // Configurar filtrado
         FiltradorUtil.configurarFiltroColumnas(tablaProductos, new String[]{"Nombre", "Cantidad"});
-        
-        // Scroll con altura mejorada
+
         JScrollPane scrollProductos = new JScrollPane(tablaProductos);
-        scrollProductos.setPreferredSize(new Dimension(320, 280));
+        scrollProductos.setPreferredSize(new Dimension(360, 380));
         scrollProductos.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         left.add(scrollProductos, BorderLayout.CENTER);
 
@@ -106,14 +107,32 @@ public class DespachoGUI extends JDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1;
 
-        txtCliente = new JTextField();
-        txtNIT = new JTextField();
-        txtTelefono = new JTextField();
-        txtDireccion = new JTextField();
-        txtCiudad = new JTextField();
-        areaNotas = new JTextArea(4, 20);
+        // ── JComboBox para seleccionar cliente ──────────────────────────────
+        cmbCliente = new JComboBox<>();
+        cmbCliente.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        cmbCliente.setPreferredSize(new Dimension(260, 30));
 
-        Font fuenteCampos = new Font("SansSerif", Font.PLAIN, 14);
+        // Botón para gestionar clientes sin cerrar DespachoGUI
+        JButton btnGestionarClientes = new JButton("Gestionar Clientes");
+        btnGestionarClientes.setFont(new Font("SansSerif", Font.PLAIN, 11));
+
+        // ── Campos de solo lectura ──────────────────────────────────────────
+        txtCliente   = new JTextField(); txtCliente.setEditable(false);
+        txtNIT       = new JTextField(); txtNIT.setEditable(false);
+        txtTelefono  = new JTextField(); txtTelefono.setEditable(false);
+        txtDireccion = new JTextField(); txtDireccion.setEditable(false);
+        txtCiudad    = new JTextField(); txtCiudad.setEditable(false);
+        areaNotas    = new JTextArea(4, 20);
+
+        // Fondo gris para indicar que son solo lectura
+        Color soloLectura = new Color(240, 240, 240);
+        txtCliente.setBackground(soloLectura);
+        txtNIT.setBackground(soloLectura);
+        txtTelefono.setBackground(soloLectura);
+        txtDireccion.setBackground(soloLectura);
+        txtCiudad.setBackground(soloLectura);
+
+        Font fuenteCampos = new Font("SansSerif", Font.PLAIN, 13);
         txtCliente.setFont(fuenteCampos);
         txtNIT.setFont(fuenteCampos);
         txtTelefono.setFont(fuenteCampos);
@@ -121,26 +140,32 @@ public class DespachoGUI extends JDialog {
         txtCiudad.setFont(fuenteCampos);
         areaNotas.setFont(fuenteCampos);
 
-        Dimension tamanoCampo = new Dimension(260, 34);
+        Dimension tamanoCampo = new Dimension(260, 30);
         txtCliente.setPreferredSize(tamanoCampo);
         txtNIT.setPreferredSize(tamanoCampo);
         txtTelefono.setPreferredSize(tamanoCampo);
         txtDireccion.setPreferredSize(tamanoCampo);
         txtCiudad.setPreferredSize(tamanoCampo);
-        areaNotas.setPreferredSize(new Dimension(260, 100));
 
-        gbc.gridx = 0; gbc.gridy = 0; form.add(new JLabel("Cliente:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 0; form.add(txtCliente, gbc);
-        gbc.gridx = 0; gbc.gridy = 1; form.add(new JLabel("NIT:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 1; form.add(txtNIT, gbc);
-        gbc.gridx = 0; gbc.gridy = 2; form.add(new JLabel("Teléfono:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 2; form.add(txtTelefono, gbc);
-        gbc.gridx = 0; gbc.gridy = 3; form.add(new JLabel("Dirección:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 3; form.add(txtDireccion, gbc);
-        gbc.gridx = 0; gbc.gridy = 4; form.add(new JLabel("Ciudad:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 4; form.add(txtCiudad, gbc);
-        gbc.gridx = 0; gbc.gridy = 5; form.add(new JLabel("Notas:"), gbc);
-        gbc.gridx = 1; gbc.gridy = 5; form.add(new JScrollPane(areaNotas), gbc);
+        // ── Layout del formulario ───────────────────────────────────────────
+        // Fila 0: selector de cliente
+        gbc.gridx = 0; gbc.gridy = 0; form.add(new JLabel("Cliente:"),      gbc);
+        gbc.gridx = 1; gbc.gridy = 0; form.add(cmbCliente,                  gbc);
+        // Fila 1: botón gestionar
+        gbc.gridx = 1; gbc.gridy = 1; form.add(btnGestionarClientes,        gbc);
+        // Fila 2-6: datos de solo lectura
+        gbc.gridx = 0; gbc.gridy = 2; form.add(new JLabel("Nombre:"),       gbc);
+        gbc.gridx = 1; gbc.gridy = 2; form.add(txtCliente,                  gbc);
+        gbc.gridx = 0; gbc.gridy = 3; form.add(new JLabel("NIT:"),          gbc);
+        gbc.gridx = 1; gbc.gridy = 3; form.add(txtNIT,                      gbc);
+        gbc.gridx = 0; gbc.gridy = 4; form.add(new JLabel("Teléfono:"),     gbc);
+        gbc.gridx = 1; gbc.gridy = 4; form.add(txtTelefono,                 gbc);
+        gbc.gridx = 0; gbc.gridy = 5; form.add(new JLabel("Dirección:"),    gbc);
+        gbc.gridx = 1; gbc.gridy = 5; form.add(txtDireccion,                gbc);
+        gbc.gridx = 0; gbc.gridy = 6; form.add(new JLabel("Ciudad:"),       gbc);
+        gbc.gridx = 1; gbc.gridy = 6; form.add(txtCiudad,                   gbc);
+        gbc.gridx = 0; gbc.gridy = 7; form.add(new JLabel("Notas:"),        gbc);
+        gbc.gridx = 1; gbc.gridy = 7; form.add(new JScrollPane(areaNotas),  gbc);
 
         JScrollPane scrollForm = new JScrollPane(form);
         scrollForm.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
@@ -149,7 +174,7 @@ public class DespachoGUI extends JDialog {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER));
         JButton btnConfirmar = new JButton("Confirmar despacho");
-        JButton btnCerrar = new JButton("Cerrar");
+        JButton btnCerrar    = new JButton("Cerrar");
         actions.add(btnConfirmar);
         actions.add(btnCerrar);
         right.add(actions, BorderLayout.SOUTH);
@@ -158,45 +183,91 @@ public class DespachoGUI extends JDialog {
         JPanel bottom = new JPanel(new BorderLayout(6, 6));
         bottom.setBorder(BorderFactory.createTitledBorder("Despachos registrados"));
 
-        // Filtro para despachos
-        filtroDespachos = new FiltroPanel("Buscar despachos por cliente, NIT, ciudad...", this::aplicarFiltroDespachos);
-        bottom.add(filtroDespachos, BorderLayout.NORTH);
+        filtroDespachos = new FiltroPanel(
+                "Buscar despachos por cliente, NIT, ciudad...",
+                this::aplicarFiltroDespachos);
 
-        modelDespachos = new DefaultTableModel(new String[]{"Remisión", "Fecha", "Cliente", "Items", "Ciudad"}, 0) {
+        JPanel panelFiltroProducto = new JPanel(new BorderLayout(6, 6));
+        panelFiltroProducto.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        JLabel     lblFiltroProducto  = new JLabel("Filtrar por Producto:");
+        JTextField txtFiltroProducto  = new JTextField(20);
+        JButton    btnMostrarTotales  = new JButton("Mostrar Total Entregado");
+        JLabel     lblTotalEntregado  = new JLabel("Total: 0");
+        panelFiltroProducto.add(lblFiltroProducto, BorderLayout.WEST);
+        panelFiltroProducto.add(txtFiltroProducto, BorderLayout.CENTER);
+        panelFiltroProducto.add(btnMostrarTotales, BorderLayout.EAST);
+        panelFiltroProducto.add(lblTotalEntregado, BorderLayout.SOUTH);
+
+        JPanel panelFiltrosCombinados = new JPanel(new BorderLayout(4, 4));
+        panelFiltrosCombinados.add(filtroDespachos,     BorderLayout.NORTH);
+        panelFiltrosCombinados.add(panelFiltroProducto, BorderLayout.SOUTH);
+        bottom.add(panelFiltrosCombinados, BorderLayout.NORTH);
+
+        modelDespachos = new DefaultTableModel(
+                new String[]{"Remisión", "Fecha", "Cliente", "Items", "Ciudad"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         tablaDespachos = new JTable(modelDespachos);
-        
-        // Configurar filtrado
-        FiltradorUtil.configurarFiltroColumnas(tablaDespachos, new String[]{"Remisión", "Fecha", "Cliente", "Items", "Ciudad"});
-        
+        FiltradorUtil.configurarFiltroColumnas(tablaDespachos,
+                new String[]{"Remisión", "fecha", "Cliente", "Items", "Ciudad"});
         bottom.add(new JScrollPane(tablaDespachos), BorderLayout.CENTER);
 
         // ===== JTabbedPane PRINCIPAL =====
         JTabbedPane tabsDespachos = new JTabbedPane();
-
-        // Pestaña principal: Gestión de despachos
         JPanel panelDespachos = new JPanel(new BorderLayout());
         JPanel top = new JPanel(new GridLayout(1, 3, 8, 8));
         top.add(left);
         top.add(center);
         top.add(right);
-        panelDespachos.add(top, BorderLayout.CENTER);
-        panelDespachos.add(bottom, BorderLayout.SOUTH);
-        tabsDespachos.addTab("Gestión de Despachos", panelDespachos);
 
-        // Pestaña historial productos terminados
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, bottom);
+        splitPane.setResizeWeight(0.65);
+        splitPane.setDividerSize(6);
+        splitPane.setContinuousLayout(true);
+        panelDespachos.add(splitPane, BorderLayout.CENTER);
+
+        tabsDespachos.addTab("Gestión de Despachos", panelDespachos);
         HistorialProductosPanel historialPanel = new HistorialProductosPanel();
         tabsDespachos.addTab("Historial Productos", historialPanel);
-
         add(tabsDespachos, BorderLayout.CENTER);
 
         // ===== LISTENERS =====
-        btnAgregar.addActionListener(e -> onAgregarItem());
-        btnQuitar.addActionListener(e -> onQuitarItem());
+        btnAgregar.addActionListener(e   -> onAgregarItem());
+        btnQuitar.addActionListener(e    -> onQuitarItem());
         btnConfirmar.addActionListener(e -> onConfirmarDespacho());
-        btnCerrar.addActionListener(e -> dispose());
+        btnCerrar.addActionListener(e    -> dispose());
 
+        // Cuando se selecciona un cliente en el combo → llenar campos
+        cmbCliente.addActionListener(e -> {
+            Cliente seleccionado = (Cliente) cmbCliente.getSelectedItem();
+            if (seleccionado != null) {
+                txtCliente.setText(seleccionado.getNombre());
+                txtNIT.setText(seleccionado.getNit());
+                txtTelefono.setText(seleccionado.getTelefono());
+                txtDireccion.setText(seleccionado.getDireccion());
+                txtCiudad.setText(seleccionado.getCiudad());
+            } else {
+                limpiarCamposCliente();
+            }
+        });
+
+        // Botón gestionar clientes → abre GestionClientesGUI y recarga el combo al cerrar
+        btnGestionarClientes.addActionListener(e -> {
+            new GestionClientesGUI(parentFrame).setVisible(true);
+            recargarComboClientes(); // Actualiza la lista después de gestionar
+        });
+
+        // Listener total entregado
+        btnMostrarTotales.addActionListener(e -> {
+            String nombreProducto = txtFiltroProducto.getText().trim();
+            if (nombreProducto.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Ingrese el nombre del producto");
+                return;
+            }
+            aplicarFiltroDespachosPorProducto(nombreProducto, lblTotalEntregado);
+        });
+
+        // Doble clic en tabla despachos → abrir factura
         tablaDespachos.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -209,16 +280,48 @@ public class DespachoGUI extends JDialog {
             }
         });
 
-        // Inicializar despacho actual
-        crearNuevoDespacho();
-        
-        // Cargar datos iniciales
-        refreshProductos();
-        refreshDespachos();
-        actualizarContadores();
+        recargarComboClientes();  // ← primero llena el combo
+crearNuevoDespacho();     // ← ahora sí puede hacer setSelectedIndex(0)
+refreshProductos();
+refreshDespachos();
+actualizarContadores();
+    }
+
+    // ===== COMBO DE CLIENTES =====
+
+    /**
+     * Recarga el JComboBox con la lista actual de clientes desde SQLite.
+     * Llama a esto después de crear/editar/eliminar clientes.
+     */
+    public void recargarComboClientes() {
+        Cliente seleccionadoAntes = (Cliente) cmbCliente.getSelectedItem();
+        cmbCliente.removeAllItems();
+        cmbCliente.addItem(null); // opción vacía al inicio
+        for (Cliente c : ClienteDAO.listarTodos()) {
+            cmbCliente.addItem(c);
+        }
+        // Restaurar selección si sigue existiendo
+        if (seleccionadoAntes != null) {
+            for (int i = 0; i < cmbCliente.getItemCount(); i++) {
+                Cliente c = cmbCliente.getItemAt(i);
+                if (c != null && c.getId() == seleccionadoAntes.getId()) {
+                    cmbCliente.setSelectedIndex(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void limpiarCamposCliente() {
+        txtCliente.setText("");
+        txtNIT.setText("");
+        txtTelefono.setText("");
+        txtDireccion.setText("");
+        txtCiudad.setText("");
     }
 
     // ===== MÉTODOS DE FILTRADO =====
+
     private void aplicarFiltroProductos() {
         String filtro = filtroProductos.getTextoFiltro();
         FiltradorUtil.aplicarFiltroTabla(tablaProductos, filtro);
@@ -231,21 +334,74 @@ public class DespachoGUI extends JDialog {
         actualizarContadores();
     }
 
+    private void aplicarFiltroDespachosPorProducto(String nombreProducto, JLabel lblTotal) {
+        modelDespachos.setRowCount(0);
+        int totalEntregado = 0;
+        for (Despacho d : DataStore.despachos) {
+            boolean contieneProducto = false;
+            for (Despacho.Item item : d.getItems()) {
+                if (item.getNombreProducto().toLowerCase()
+                        .contains(nombreProducto.toLowerCase())) {
+                    contieneProducto = true;
+                    totalEntregado  += item.getCantidad();
+                    break;
+                }
+            }
+            if (contieneProducto) {
+                modelDespachos.addRow(new Object[]{
+                    d.getNumeroRemision(),
+                    d.getFechaHora() != null
+                        ? d.getFechaHora().toLocalDate().toString() : "Sin fecha",
+                    d.getClienteNombre() != null ? d.getClienteNombre() : d.getCliente(),
+                    d.getItems().size(),
+                    d.getClienteCiudad() != null ? d.getClienteCiudad() : d.getCiudad()
+                });
+            }
+        }
+        lblTotal.setText("Total entregado de '" + nombreProducto + "': " + totalEntregado);
+    }
+
+    public Map<String, Integer> obtenerProductosEntregados() {
+        Map<String, Integer> totalPorProducto = new HashMap<>();
+        for (Despacho d : DataStore.despachos) {
+            for (Despacho.Item item : d.getItems()) {
+                totalPorProducto.merge(
+                    item.getNombreProducto(), item.getCantidad(), Integer::sum);
+            }
+        }
+        return totalPorProducto;
+    }
+
+    public void generarReporteProductosEntregados() {
+        Map<String, Integer> totales = obtenerProductosEntregados();
+        StringBuilder reporte = new StringBuilder("REPORTE DE PRODUCTOS ENTREGADOS\n");
+        reporte.append("================================\n");
+        int totalGeneral = 0;
+        for (Map.Entry<String, Integer> entry : totales.entrySet()) {
+            reporte.append(String.format("%-30s %d unidades\n",
+                entry.getKey(), entry.getValue()));
+            totalGeneral += entry.getValue();
+        }
+        reporte.append("================================\n");
+        reporte.append("TOTAL GENERAL: ").append(totalGeneral).append(" unidades\n");
+        JOptionPane.showMessageDialog(this, reporte.toString(),
+            "Reporte de Entregas", JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private void actualizarContadores() {
-        // Contador para productos
-        int totalProductos = DataStore.productos.size();
-        int productosFiltrados = filtroProductos.getTextoFiltro().isEmpty() ? 
-            totalProductos : tablaProductos.getRowCount();
+        int totalProductos     = DataStore.productos.size();
+        int productosFiltrados = filtroProductos.getTextoFiltro().isEmpty()
+            ? totalProductos : tablaProductos.getRowCount();
         filtroProductos.actualizarContador(totalProductos, productosFiltrados);
-        
-        // Contador para despachos
-        int totalDespachos = DataStore.despachos.size();
-        int despachosFiltrados = filtroDespachos.getTextoFiltro().isEmpty() ? 
-            totalDespachos : tablaDespachos.getRowCount();
+
+        int totalDespachos     = DataStore.despachos.size();
+        int despachosFiltrados = filtroDespachos.getTextoFiltro().isEmpty()
+            ? totalDespachos : tablaDespachos.getRowCount();
         filtroDespachos.actualizarContador(totalDespachos, despachosFiltrados);
     }
 
-    // ===== MÉTODOS DE REFRESCO =====
+    // ===== REFRESCO =====
+
     public void refreshProductos() {
         modelProductos.setRowCount(0);
         for (ProductoTerminado p : DataStore.productos) {
@@ -260,13 +416,12 @@ public class DespachoGUI extends JDialog {
     public void refreshDespachos() {
         modelDespachos.setRowCount(0);
         for (Despacho d : DataStore.despachos) {
-            String itemsCount = Integer.toString(d.getItems().size());
-            // CORRECCIÓN: Usar los métodos correctos según tu clase Despacho
             modelDespachos.addRow(new Object[]{
                 d.getNumeroRemision(),
-                d.getFechaHora() != null ? d.getFechaHora().toLocalDate().toString() : "Sin fecha",
+                d.getFechaHora() != null
+                    ? d.getFechaHora().toLocalDate().toString() : "Sin fecha",
                 d.getClienteNombre() != null ? d.getClienteNombre() : d.getCliente(),
-                itemsCount,
+                Integer.toString(d.getItems().size()),
                 d.getClienteCiudad() != null ? d.getClienteCiudad() : d.getCiudad()
             });
         }
@@ -274,24 +429,24 @@ public class DespachoGUI extends JDialog {
         actualizarContadores();
     }
 
-    // ===== MÉTODOS PARA MANEJAR EL DESPACHO ACTUAL =====
+    // ===== MANEJO DEL DESPACHO ACTUAL =====
+
     private void crearNuevoDespacho() {
         despachoActual = new Despacho();
-        itemsDespacho = new ArrayList<>();
+        itemsDespacho  = new ArrayList<>();
         limpiarFormulario();
         actualizarTablaItems();
     }
 
     private void limpiarFormulario() {
-        txtCliente.setText("");
-        txtNIT.setText("");
-        txtTelefono.setText("");
-        txtDireccion.setText("");
-        txtCiudad.setText("");
-        areaNotas.setText("");
-        txtCantidad.setText("");
-        modelItems.setRowCount(0);
+    if (cmbCliente.getItemCount() > 0) {
+        cmbCliente.setSelectedIndex(0);
     }
+    limpiarCamposCliente();
+    areaNotas.setText("");
+    txtCantidad.setText("");
+    modelItems.setRowCount(0);
+}
 
     private void actualizarTablaItems() {
         modelItems.setRowCount(0);
@@ -300,17 +455,16 @@ public class DespachoGUI extends JDialog {
         }
     }
 
-    // ===== MÉTODOS DE ACCIÓN =====
+    // ===== ACCIONES =====
+
     private void onAgregarItem() {
         int sel = tablaProductos.getSelectedRow();
         if (sel < 0) {
             JOptionPane.showMessageDialog(this, "Seleccione un producto.");
             return;
         }
-        
-        // Convertir índice de fila filtrada
         int modeloIndex = tablaProductos.convertRowIndexToModel(sel);
-        String nombre = (String) modelProductos.getValueAt(modeloIndex, 0);
+        String nombre   = (String) modelProductos.getValueAt(modeloIndex, 0);
         String sCantidad = txtCantidad.getText().trim();
         int cantidad;
         try {
@@ -320,19 +474,14 @@ public class DespachoGUI extends JDialog {
             JOptionPane.showMessageDialog(this, "Cantidad inválida.");
             return;
         }
-
-        // Verificar stock disponible
         ProductoTerminado producto = buscarProductoTerminadoPorNombre(nombre);
         if (producto == null || cantidad > producto.getCantidad()) {
-            JOptionPane.showMessageDialog(this, 
-                "Stock insuficiente. Disponible: " + 
+            JOptionPane.showMessageDialog(this,
+                "Stock insuficiente. Disponible: " +
                 (producto != null ? producto.getCantidad() : 0));
             return;
         }
-
-        // Agregar item al despacho actual
-        Despacho.Item nuevoItem = new Despacho.Item(nombre, cantidad);
-        itemsDespacho.add(nuevoItem);
+        itemsDespacho.add(new Despacho.Item(nombre, cantidad));
         actualizarTablaItems();
         txtCantidad.setText("");
     }
@@ -360,73 +509,37 @@ public class DespachoGUI extends JDialog {
             return;
         }
 
-        String cliente = txtCliente.getText().trim();
-        String nit = txtNIT.getText().trim();
-        
-        if (cliente.isEmpty() || nit.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar al menos Cliente y NIT.");
+        // Verificar que se haya seleccionado un cliente del combo
+        Cliente clienteSeleccionado = (Cliente) cmbCliente.getSelectedItem();
+        if (clienteSeleccionado == null) {
+            JOptionPane.showMessageDialog(this,
+                "Debe seleccionar un cliente del listado.\n" +
+                "Si el cliente no existe, use 'Gestionar Clientes' para crearlo.");
             return;
         }
 
         try {
-            // Completar datos del despacho actual
-            // CORRECCIÓN: Usar los métodos correctos según tu clase Despacho
-            if (despachoActual != null) {
-                // Intentar usar ambos sets de métodos para compatibilidad
-                try {
-                    despachoActual.setClienteNombre(cliente);
-                    despachoActual.setClienteNIT(nit);
-                    despachoActual.setClienteTelefono(txtTelefono.getText().trim());
-                    despachoActual.setClienteDireccion(txtDireccion.getText().trim());
-                    despachoActual.setClienteCiudad(txtCiudad.getText().trim());
-                } catch (Exception e) {
-                    // Si falla, usar los métodos antiguos
-                    despachoActual.setCliente(cliente);
-                    despachoActual.setNit(nit);
-                    despachoActual.setTelefono(txtTelefono.getText().trim());
-                    despachoActual.setDireccion(txtDireccion.getText().trim());
-                    despachoActual.setCiudad(txtCiudad.getText().trim());
-                }
-                
-                despachoActual.setNotas(areaNotas.getText().trim());
-                despachoActual.setFechaHora(LocalDateTime.now());
-                
-                // Asignar los items al despacho
-                despachoActual.setItems(new ArrayList<>(itemsDespacho));
-            } else {
-                // Crear nuevo despacho si no existe
-                despachoActual = new Despacho();
-                // Usar métodos según disponibilidad
-                try {
-                    despachoActual.setClienteNombre(cliente);
-                    despachoActual.setClienteNIT(nit);
-                    despachoActual.setClienteTelefono(txtTelefono.getText().trim());
-                    despachoActual.setClienteDireccion(txtDireccion.getText().trim());
-                    despachoActual.setClienteCiudad(txtCiudad.getText().trim());
-                } catch (Exception e) {
-                    despachoActual.setCliente(cliente);
-                    despachoActual.setNit(nit);
-                    despachoActual.setTelefono(txtTelefono.getText().trim());
-                    despachoActual.setDireccion(txtDireccion.getText().trim());
-                    despachoActual.setCiudad(txtCiudad.getText().trim());
-                }
-                despachoActual.setNotas(areaNotas.getText().trim());
-                despachoActual.setFechaHora(LocalDateTime.now());
-                despachoActual.setItems(new ArrayList<>(itemsDespacho));
-            }
+            if (despachoActual == null) despachoActual = new Despacho();
 
-            // Registrar el despacho usando DataStore
+            despachoActual.setClienteNombre(clienteSeleccionado.getNombre());
+            despachoActual.setClienteNIT(clienteSeleccionado.getNit());
+            despachoActual.setClienteTelefono(clienteSeleccionado.getTelefono());
+            despachoActual.setClienteDireccion(clienteSeleccionado.getDireccion());
+            despachoActual.setClienteCiudad(clienteSeleccionado.getCiudad());
+            despachoActual.setNotas(areaNotas.getText().trim());
+            despachoActual.setFechaHora(LocalDateTime.now());
+            despachoActual.setItems(new ArrayList<>(itemsDespacho));
+
             DataStore.registrarDespacho(despachoActual);
 
-            JOptionPane.showMessageDialog(this, 
-                "Despacho registrado exitosamente\nRemisión: " + despachoActual.getNumeroRemision());
+            JOptionPane.showMessageDialog(this,
+                "Despacho registrado exitosamente\nRemisión: " +
+                despachoActual.getNumeroRemision());
 
-            // Crear nuevo despacho para el próximo
             crearNuevoDespacho();
             refreshProductos();
             refreshDespachos();
 
-            // Abrir factura
             new VentanaFacturaGUI(this, despachoActual).setVisible(true);
 
         } catch (Exception e) {

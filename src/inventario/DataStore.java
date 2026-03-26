@@ -552,6 +552,7 @@ stmt.execute("""
         System.err.println("❌ Error creando tablas: " + e.getMessage());
         e.printStackTrace();
         }
+        ClienteDAO.crearTabla();
     }
 
     // === INICIALIZACIÓN DE CONFIGURACIÓN ===
