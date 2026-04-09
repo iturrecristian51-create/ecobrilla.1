@@ -46,5 +46,10 @@ public void setInsumos(Map<String, Double> insumos) {
         return descripcion;
     }
     
+    // ✅ NUEVO MÉTODO: toString() para mostrar el nombre en el JComboBox
+    @Override
+    public String toString() {
+        return nombre;
+    }
 }
 

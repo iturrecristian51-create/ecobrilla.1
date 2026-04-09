@@ -10,7 +10,7 @@ public class ProduccionGUI extends JDialog {
     private DefaultTableModel modelInsumos;
     private DefaultTableModel modelLotes;
     private JComboBox<String> comboInsumos;
-    private JComboBox<String> comboProductos;
+    private JComboBox<Producto> comboProductos;  // ✅ Cambio a JComboBox<Producto>
     private JTextField txtUnidades;
     private JTextField txtIdLote;
     private JTextField txtFecha;
@@ -65,8 +65,11 @@ public class ProduccionGUI extends JDialog {
         left.add(new JLabel()); left.add(btnFinalizar);
 
         // Panel central (insumos del lote actual)
+        // ✅ CAMBIO: Permitir editar solo la columna 'Cantidad' (índice 1)
         modelInsumos = new DefaultTableModel(new String[]{"Insumo", "Cantidad"}, 0) {
-            @Override public boolean isCellEditable(int r, int c){ return false; }
+            @Override public boolean isCellEditable(int r, int c){
+                return c == 1;  // Solo la columna 'Cantidad' es editable
+            }
         };
         tInsumos = new JTable(modelInsumos);  // ✅ Usar variable de clase
         JPanel center = new JPanel(new BorderLayout());
@@ -115,6 +118,9 @@ public class ProduccionGUI extends JDialog {
         add(tabsProduccion, BorderLayout.CENTER);
 
         // === ACCIONES ===
+        // ✅ ActionListener en comboProductos para actualizar tabla de insumos automáticamente
+        comboProductos.addActionListener(e -> actualizarTablaInsumos());
+        
         btnCrear.addActionListener(e -> crearLote());
         btnContinuar.addActionListener(e -> continuarLoteSeleccionado());
         btnAgregarInsumo.addActionListener(e -> agregarInsumo());
@@ -373,7 +379,28 @@ public class ProduccionGUI extends JDialog {
     private void refreshComboProductos() {
         comboProductos.removeAllItems();
         for (Producto p : ListaProductos.obtenerProductos()) {
-            comboProductos.addItem(p.getNombre());
+            comboProductos.addItem(p);  // ✅ Agregar el objeto Producto, no solo el nombre
+        }
+    }
+
+    // ✅ NUEVO MÉTODO: Actualizar tabla de insumos cuando se selecciona un producto
+    private void actualizarTablaInsumos() {
+        modelInsumos.setRowCount(0);  // ✅ Limpiar la tabla
+        
+        Producto productoSeleccionado = (Producto) comboProductos.getSelectedItem();
+        if (productoSeleccionado == null) {
+            return;
+        }
+        
+        // ✅ Obtener insumos del producto seleccionado
+        java.util.Map<String, Double> insumos = productoSeleccionado.getInsumosRequeridos();
+        if (insumos == null || insumos.isEmpty()) {
+            return;
+        }
+        
+        // ✅ Cargar insumos en la tabla (editable la cantidad)
+        for (java.util.Map.Entry<String, Double> entry : insumos.entrySet()) {
+            modelInsumos.addRow(new Object[]{entry.getKey(), entry.getValue()});
         }
     }
 }
