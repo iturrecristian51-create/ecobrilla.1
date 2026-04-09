@@ -1,9 +1,9 @@
 package inventario;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 public class ProduccionGUI extends JDialog {
     private Lote loteActual;
@@ -16,6 +16,7 @@ public class ProduccionGUI extends JDialog {
     private JTextField txtFecha;
     private JTextField txtCantInsumo;
     private JTable tablaLotes;
+    private JTable tInsumos;  // ✅ Variable de clase para poder accederla en eliminarInsumoSeleccionado()
 
     private DespachoGUI despachoGUI;
 
@@ -48,7 +49,9 @@ public class ProduccionGUI extends JDialog {
         txtCantInsumo = new JTextField();
 
         JButton btnCrear = new JButton("Crear lote temporal");
+        JButton btnContinuar = new JButton("Continuar lote seleccionado");
         JButton btnAgregarInsumo = new JButton("Agregar insumo");
+        JButton btnEliminarInsumo = new JButton("Eliminar insumo seleccionado");
         JButton btnFinalizar = new JButton("Finalizar y Guardar Lote");
 
         left.add(new JLabel("ID del Lote:")); left.add(txtIdLote);
@@ -57,14 +60,15 @@ public class ProduccionGUI extends JDialog {
         left.add(new JLabel("Unidades a producir:")); left.add(txtUnidades);
         left.add(new JLabel("Insumo:")); left.add(comboInsumos);
         left.add(new JLabel("Cantidad insumo:")); left.add(txtCantInsumo);
-        left.add(btnCrear); left.add(btnAgregarInsumo);
+        left.add(btnCrear); left.add(btnContinuar);
+        left.add(btnAgregarInsumo); left.add(btnEliminarInsumo);
         left.add(new JLabel()); left.add(btnFinalizar);
 
         // Panel central (insumos del lote actual)
         modelInsumos = new DefaultTableModel(new String[]{"Insumo", "Cantidad"}, 0) {
             @Override public boolean isCellEditable(int r, int c){ return false; }
         };
-        JTable tInsumos = new JTable(modelInsumos);
+        tInsumos = new JTable(modelInsumos);  // ✅ Usar variable de clase
         JPanel center = new JPanel(new BorderLayout());
         center.setBorder(BorderFactory.createTitledBorder("Insumos del Lote Actual"));
         center.add(new JScrollPane(tInsumos), BorderLayout.CENTER);
@@ -112,7 +116,9 @@ public class ProduccionGUI extends JDialog {
 
         // === ACCIONES ===
         btnCrear.addActionListener(e -> crearLote());
+        btnContinuar.addActionListener(e -> continuarLoteSeleccionado());
         btnAgregarInsumo.addActionListener(e -> agregarInsumo());
+        btnEliminarInsumo.addActionListener(e -> eliminarInsumoSeleccionado());
         btnFinalizar.addActionListener(e -> finalizarLote());
         btnCerrar.addActionListener(e -> dispose());
     }
@@ -127,9 +133,69 @@ public class ProduccionGUI extends JDialog {
             return;
         }
 
+        // Verificar que el lote no exista ya
+        for (Lote l : DataStore.lotes) {
+            if (l.getIdLote().equals(idLote)) {
+                JOptionPane.showMessageDialog(this, "El lote ID '" + idLote + "' ya existe. Usa otro ID.");
+                return;
+            }
+        }
+
         loteActual = new Lote(idLote, producto, fecha);
         modelInsumos.setRowCount(0);
-        JOptionPane.showMessageDialog(this, "Lote creado temporalmente. Estado: EN PROCESO");
+        JOptionPane.showMessageDialog(this, "Lote creado temporalmente. Estado: EN PROCESO\n\nAhora agrega insumos.");
+    }
+
+    // ✅ NUEVO MÉTODO: Continuar editando un lote existente en "En proceso"
+    private void continuarLoteSeleccionado() {
+        int fila = tablaLotes.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this, "Selecciona un lote de la tabla para continuar editándolo.");
+            return;
+        }
+        
+        String idLote = (String) modelLotes.getValueAt(fila, 0);
+        String estado = (String) modelLotes.getValueAt(fila, 3);
+        
+        // Solo se pueden continuar lotes en estado "En proceso"
+        if (!estado.equals("En proceso")) {
+            JOptionPane.showMessageDialog(this, 
+                "Solo puedes continuar lotes en estado 'En proceso'.\n" +
+                "Este lote está en estado: " + estado);
+            return;
+        }
+        
+        // Buscar el lote en DataStore
+        Lote loteEncontrado = null;
+        for (Lote l : DataStore.lotes) {
+            if (l.getIdLote().equals(idLote)) {
+                loteEncontrado = l;
+                break;
+            }
+        }
+        
+        if (loteEncontrado == null) {
+            JOptionPane.showMessageDialog(this, "Error: No se encontró el lote en el sistema.");
+            return;
+        }
+        
+        // Cargar el lote en loteActual
+        loteActual = loteEncontrado;
+        
+        // Cargar los datos en el formulario
+        txtIdLote.setText(loteActual.getIdLote());
+        txtFecha.setText(loteActual.getFechaProduccion());
+        comboProductos.setSelectedItem(loteActual.getNombreProducto());
+        
+        // Cargar los insumos en la tabla
+        modelInsumos.setRowCount(0);
+        for (java.util.Map.Entry<String, Double> entry : loteActual.getInsumosUsados().entrySet()) {
+            modelInsumos.addRow(new Object[]{entry.getKey(), entry.getValue()});
+        }
+        
+        JOptionPane.showMessageDialog(this, 
+            "Lote cargado: " + idLote + "\n" +
+            "Puedes seguir agregando insumos o cambiar la cantidad de unidades.");
     }
 
     private void agregarInsumo() {
@@ -157,6 +223,16 @@ public class ProduccionGUI extends JDialog {
             modelInsumos.addRow(new Object[]{nombreInsumo, cantidad});
             txtCantInsumo.setText("");
 
+            // ✅ CORRECCIÓN 1: Guardar lote temporal en DataStore después de agregar el primer insumo
+            // Esto asegura que aunque se cierre la ventana sin hacer clic en "Finalizar",
+            // los insumos agregados no desaparezcan
+            if (loteActual.getInsumosUsados().size() == 1) {  // Primera vez que se agrega un insumo
+                DataStore.agregarLote(loteActual);
+                JOptionPane.showMessageDialog(this, 
+                    "Lote temporal guardado en el sistema con el primer insumo.\n" +
+                    "Puedes seguir agregando insumos o finalizar después.");
+            }
+
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Cantidad inválida.");
         } catch (IllegalArgumentException ex) {
@@ -183,7 +259,8 @@ public class ProduccionGUI extends JDialog {
         loteActual.setEstado("Terminado");
         loteActual.setUnidadesProducidas(unidades);
 
-        // ✅ GUARDAR EN SQLITE
+        // ✅ GUARDAR EN SQLITE (actualizar si ya existe como "En proceso", o agregar si es nuevo)
+        // DataStore.agregarLote() internamente verifica si ya existe y lo actualiza
         DataStore.agregarLote(loteActual);
         DataStore.addOrUpdateProductoTerminado(loteActual, unidades);
 
@@ -232,6 +309,36 @@ public class ProduccionGUI extends JDialog {
         }
     }
 }
+
+    // ✅ CORRECCIÓN 2: Nuevo método para eliminar insumo seleccionado de la tabla
+    private void eliminarInsumoSeleccionado() {
+        if (loteActual == null) {
+            JOptionPane.showMessageDialog(this, "No hay un lote creado.");
+            return;
+        }
+        
+        int filaSeleccionada = tInsumos.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Selecciona un insumo de la tabla para eliminar.");
+            return;
+        }
+        
+        String nombreInsumo = (String) modelInsumos.getValueAt(filaSeleccionada, 0);
+        double cantidad = (Double) modelInsumos.getValueAt(filaSeleccionada, 1);
+        
+        // Eliminar del lote actual y devolver al stock
+        boolean eliminado = loteActual.eliminarInsumoUsado(nombreInsumo);
+        
+        if (eliminado) {
+            // Eliminar de la tabla
+            modelInsumos.removeRow(filaSeleccionada);
+            JOptionPane.showMessageDialog(this, 
+                "Insumo '" + nombreInsumo + "' (x" + cantidad + ") eliminado.\n" +
+                "El stock ha sido devuelto automáticamente.");
+        } else {
+            JOptionPane.showMessageDialog(this, "Error al eliminar el insumo.");
+        }
+    }
 
     private void refreshTablaLotes() {
         modelLotes.setRowCount(0);
