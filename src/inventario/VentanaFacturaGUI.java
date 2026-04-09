@@ -1,10 +1,10 @@
 package inventario;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.print.*;
 import java.time.format.DateTimeFormatter;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 
 /**
  * VentanaFacturaGUI actualizada para:
@@ -77,9 +77,17 @@ panelContenido.add(titulo);
         lblRemision.setAlignmentX(Component.CENTER_ALIGNMENT);
         panelContenido.add(lblRemision);
 
-        JLabel lblFecha = new JLabel("Fecha: " + despacho.getFechaHora().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        JLabel lblFecha = new JLabel("impreso: " + (despacho.getFechaHora() != null 
+            ? despacho.getFechaHora().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            : "Sin fecha"));
         lblFecha.setAlignmentX(Component.CENTER_ALIGNMENT);
         panelContenido.add(lblFecha);
+
+        JLabel lblFechaEntrega = new JLabel("Fecha de Entrega: " + (despacho.getFechaEntrega() != null 
+            ? despacho.getFechaEntrega().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            : "No especificada"));
+        lblFechaEntrega.setAlignmentX(Component.CENTER_ALIGNMENT);
+        panelContenido.add(lblFechaEntrega);
 
         panelContenido.add(Box.createRigidArea(new Dimension(0, 15)));
 

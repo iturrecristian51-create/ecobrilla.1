@@ -5,8 +5,8 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**int  cllas  rjcd i
@@ -452,6 +452,7 @@ private static void crearRespaldoArchivosMigrados() {
                     cliente_direccion TEXT,
                     cliente_ciudad TEXT,
                     fecha_hora TEXT,
+                    fecha_entrega TEXT,
                     notas TEXT
                 )
             """);
@@ -552,7 +553,54 @@ stmt.execute("""
         System.err.println("❌ Error creando tablas: " + e.getMessage());
         e.printStackTrace();
         }
+        
+        // Ejecutar migraciones de base de datos
+        ejecutarMigraciones();
+        
         ClienteDAO.crearTabla();
+    }
+
+    // === MIGRACIONES DE BASE DE DATOS ===
+    private static void ejecutarMigraciones() {
+        try (Connection conn = ConexionSQLite.conectar();
+             Statement stmt = conn.createStatement()) {
+            
+            System.out.println("🔄 Verificando migraciones de base de datos...");
+            
+            // Migración 1: Agregar columna fecha_entrega a tabla despachos
+            if (!columnaExiste("despachos", "fecha_entrega")) {
+                System.out.println("📝 Agregando columna 'fecha_entrega' a tabla 'despachos'...");
+                stmt.execute("ALTER TABLE despachos ADD COLUMN fecha_entrega TEXT");
+                System.out.println("✅ Columna 'fecha_entrega' agregada exitosamente");
+            } else {
+                System.out.println("ℹ️  Columna 'fecha_entrega' ya existe en tabla 'despachos'");
+            }
+            
+            System.out.println("✅ Migraciones verificadas correctamente");
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error ejecutando migraciones: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    // Método auxiliar para verificar si una columna existe en una tabla
+    private static boolean columnaExiste(String tabla, String columna) {
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement ps = conn.prepareStatement(
+                 "PRAGMA table_info(" + tabla + ")")) {
+            
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String nombreColumna = rs.getString("name");
+                if (columna.equalsIgnoreCase(nombreColumna)) {
+                    return true;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error verificando columna '" + columna + "' en tabla '" + tabla + "': " + e.getMessage());
+        }
+        return false;
     }
 
     // === INICIALIZACIÓN DE CONFIGURACIÓN ===
@@ -714,6 +762,12 @@ stmt.execute("""
                     despacho.setFechaHora(fechaHora);
                 } else {
                     despacho.setFechaHora(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                }
+                
+                // Manejar fecha de entrega
+                String fechaEntrega = rs.getString("fecha_entrega");
+                if (fechaEntrega != null && !fechaEntrega.isBlank()) {
+                    despacho.setFechaEntrega(fechaEntrega);
                 }
                 
                 despacho.setNotas(rs.getString("notas"));
@@ -918,8 +972,8 @@ stmt.execute("""
         String sqlDespacho = """
             INSERT INTO despachos 
             (numero_remision, cliente_nombre, cliente_nit, cliente_telefono, 
-             cliente_direccion, cliente_ciudad, fecha_hora, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             cliente_direccion, cliente_ciudad, fecha_hora, fecha_entrega, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         
         String sqlItems = """
@@ -954,7 +1008,15 @@ stmt.execute("""
 
                 ps.setString(7, fechaHora);
                 
-                ps.setString(8, despacho.getNotas());
+                // Manejar fecha de entrega
+                LocalDateTime fechaEntregaLocal = despacho.getFechaEntrega();
+                String fechaEntrega = null;
+                if (fechaEntregaLocal != null) {
+                    fechaEntrega = fechaEntregaLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                }
+                ps.setString(8, fechaEntrega);
+                
+                ps.setString(9, despacho.getNotas());
                 ps.executeUpdate();
                 
                 // Obtener ID generado
@@ -1630,8 +1692,8 @@ stmt.execute("""
         String sqlDespacho = """
             INSERT INTO despachos 
             (numero_remision, cliente_nombre, cliente_nit, cliente_telefono, 
-             cliente_direccion, cliente_ciudad, fecha_hora, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             cliente_direccion, cliente_ciudad, fecha_hora, fecha_entrega, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         
         String sqlItems = """
@@ -1658,7 +1720,15 @@ stmt.execute("""
                 : LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             ps.setString(7, fechaHora);
             
-            ps.setString(8, d.getNotas());
+            // Manejar fecha de entrega
+            LocalDateTime fechaEntregaLocal = d.getFechaEntrega();
+            String fechaEntrega = null;
+            if (fechaEntregaLocal != null) {
+                fechaEntrega = fechaEntregaLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            }
+            ps.setString(8, fechaEntrega);
+            
+            ps.setString(9, d.getNotas());
             ps.executeUpdate();
             
             // Obtener ID generado

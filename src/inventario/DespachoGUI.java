@@ -2,8 +2,12 @@ package inventario;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +39,8 @@ public class DespachoGUI extends JDialog {
     private JTextField txtCiudad;
 
     private JTextArea areaNotas;
+    
+    private JSpinner spinnerFechaEntrega; // Campo para fecha de entrega
 
     // Filtros
     private FiltroPanel filtroProductos;
@@ -123,6 +129,13 @@ public class DespachoGUI extends JDialog {
         txtDireccion = new JTextField(); txtDireccion.setEditable(false);
         txtCiudad    = new JTextField(); txtCiudad.setEditable(false);
         areaNotas    = new JTextArea(4, 20);
+        
+        // Selector de fecha de entrega
+        Date fechaActual = new Date();
+        SpinnerDateModel modeloFechaEntrega = new SpinnerDateModel(fechaActual, null, null, Calendar.DAY_OF_MONTH);
+        spinnerFechaEntrega = new JSpinner(modeloFechaEntrega);
+        spinnerFechaEntrega.setEditor(new JSpinner.DateEditor(spinnerFechaEntrega, "yyyy-MM-dd"));
+        spinnerFechaEntrega.setPreferredSize(new Dimension(260, 30));
 
         // Fondo gris para indicar que son solo lectura
         Color soloLectura = new Color(240, 240, 240);
@@ -166,6 +179,8 @@ public class DespachoGUI extends JDialog {
         gbc.gridx = 1; gbc.gridy = 6; form.add(txtCiudad,                   gbc);
         gbc.gridx = 0; gbc.gridy = 7; form.add(new JLabel("Notas:"),        gbc);
         gbc.gridx = 1; gbc.gridy = 7; form.add(new JScrollPane(areaNotas),  gbc);
+        gbc.gridx = 0; gbc.gridy = 8; form.add(new JLabel("Fecha de Entrega:"), gbc);
+        gbc.gridx = 1; gbc.gridy = 8; form.add(spinnerFechaEntrega,         gbc);
 
         JScrollPane scrollForm = new JScrollPane(form);
         scrollForm.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
@@ -204,12 +219,12 @@ public class DespachoGUI extends JDialog {
         bottom.add(panelFiltrosCombinados, BorderLayout.NORTH);
 
         modelDespachos = new DefaultTableModel(
-                new String[]{"Remisión", "Fecha", "Cliente", "Items", "Ciudad"}, 0) {
+                new String[]{"Remisión", "Fecha", "Fecha Entrega", "Cliente", "Items", "Ciudad"}, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         tablaDespachos = new JTable(modelDespachos);
         FiltradorUtil.configurarFiltroColumnas(tablaDespachos,
-                new String[]{"Remisión", "fecha", "Cliente", "Items", "Ciudad"});
+                new String[]{"Remisión", "fecha", "Fecha Entrega", "Cliente", "Items", "Ciudad"});
         bottom.add(new JScrollPane(tablaDespachos), BorderLayout.CENTER);
 
         // ===== JTabbedPane PRINCIPAL =====
@@ -352,6 +367,8 @@ actualizarContadores();
                     d.getNumeroRemision(),
                     d.getFechaHora() != null
                         ? d.getFechaHora().toLocalDate().toString() : "Sin fecha",
+                    d.getFechaEntrega() != null
+                        ? d.getFechaEntrega().toLocalDate().toString() : "Sin fecha",
                     d.getClienteNombre() != null ? d.getClienteNombre() : d.getCliente(),
                     d.getItems().size(),
                     d.getClienteCiudad() != null ? d.getClienteCiudad() : d.getCiudad()
@@ -420,6 +437,8 @@ actualizarContadores();
                 d.getNumeroRemision(),
                 d.getFechaHora() != null
                     ? d.getFechaHora().toLocalDate().toString() : "Sin fecha",
+                d.getFechaEntrega() != null
+                    ? d.getFechaEntrega().toLocalDate().toString() : "Sin fecha",
                 d.getClienteNombre() != null ? d.getClienteNombre() : d.getCliente(),
                 Integer.toString(d.getItems().size()),
                 d.getClienteCiudad() != null ? d.getClienteCiudad() : d.getCiudad()
@@ -445,6 +464,7 @@ actualizarContadores();
     limpiarCamposCliente();
     areaNotas.setText("");
     txtCantidad.setText("");
+    spinnerFechaEntrega.setValue(new Date()); // Reinicializar a fecha actual
     modelItems.setRowCount(0);
 }
 
@@ -528,6 +548,15 @@ actualizarContadores();
             despachoActual.setClienteCiudad(clienteSeleccionado.getCiudad());
             despachoActual.setNotas(areaNotas.getText().trim());
             despachoActual.setFechaHora(LocalDateTime.now());
+            
+            // Capturar fecha de entrega del spinner
+            Date fechaEntregaDate = (Date) spinnerFechaEntrega.getValue();
+            if (fechaEntregaDate != null) {
+                LocalDateTime fechaEntregaLocal = Instant.ofEpochMilli(fechaEntregaDate.getTime())
+                    .atZone(ZoneId.systemDefault()).toLocalDateTime();
+                despachoActual.setFechaEntrega(fechaEntregaLocal);
+            }
+            
             despachoActual.setItems(new ArrayList<>(itemsDespacho));
 
             DataStore.registrarDespacho(despachoActual);

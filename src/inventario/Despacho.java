@@ -25,6 +25,7 @@ public class Despacho implements Serializable {
     private String notas = "";
     // Se inicializa cuando se crea o se carga desde la BD
     private LocalDateTime fechaHora;
+    private LocalDateTime fechaEntrega; // NUEVO CAMPO PARA FECHA DE ENTREGA
     private List<Item> items = new ArrayList<>();
     private String numeroRemision; // NUEVO CAMPO PARA REMISIÓN ÚNICA
 
@@ -139,6 +140,30 @@ public class Despacho implements Serializable {
     // método que devuelve la fecha como String (para código que espera getFecha())
     public String getFecha() {
         return fechaHora != null ? fechaHora.toString() : "";
+    }
+
+    // Fecha de Entrega: compatibilidad en String y LocalDateTime
+    public LocalDateTime getFechaEntrega() { return fechaEntrega; }
+
+    // Setter desde LocalDateTime
+    public void setFechaEntrega(LocalDateTime fechaEntrega) {
+        this.fechaEntrega = fechaEntrega;
+    }
+
+    // Setter que acepta String con formato "yyyy-MM-dd HH:mm:ss" (usado al cargar desde SQLite)
+    public void setFechaEntrega(String fechaEntregaStr) {
+        if (fechaEntregaStr == null || fechaEntregaStr.isBlank()) return;
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            this.fechaEntrega = LocalDateTime.parse(fechaEntregaStr, formatter);
+        } catch (DateTimeParseException e) {
+            // Si no se puede parsear, dejamos la fecha como está (puede ser null)
+        }
+    }
+
+    // método que devuelve la fecha de entrega como String
+    public String getFechaEntregaStr() {
+        return fechaEntrega != null ? fechaEntrega.toString() : "";
     }
 
     // === Items ===
