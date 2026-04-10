@@ -1,158 +1,226 @@
 package inventario;
 
+import java.awt.*;
+import java.sql.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.util.Vector;
 
 public class ProductoTerminadoGUI extends JDialog {
-    private DefaultTableModel tableModel;
-    private JTable table;
-    private JComboBox<String> comboModo;
-    private FiltroPanel filtroProductos;
+    private JTabbedPane tabsProductos;
+    
+    // Pestaña Actuales
+    private DefaultTableModel modelActuales;
+    private JTable tableActuales;
+    
+    // Pestaña Historial
+    private DefaultTableModel modelHistorial;
+    private JTable tableHistorial;
+    private JComboBox<String> comboProductosFiltro;
+    private JButton btnRefrescarHistorial;
 
     public ProductoTerminadoGUI(JFrame parent) {
         super(parent, "Productos Terminados", true);
-        setSize(800, 500);
+        setSize(1100, 650);
         setLocationRelativeTo(parent);
         initUI();
-        cargarDatos("Actuales");
+        cargarProductosActuales();
+        cargarHistorialProduccion();
     }
 
     private void initUI() {
         setLayout(new BorderLayout(10, 10));
         getContentPane().setBackground(ThemeUtil.COLOR_FONDO);
 
-        // Panel superior con controles
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBackground(ThemeUtil.COLOR_FONDO);
-        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // Título
+        // Panel superior con título
         JPanel panelTitulo = ThemeUtil.crearPanelTitulo("Productos Terminados");
-        topPanel.add(panelTitulo, BorderLayout.NORTH);
+        panelTitulo.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        add(panelTitulo, BorderLayout.NORTH);
 
-        // Controles de filtro y modo
-        JPanel controles = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        controles.setBackground(ThemeUtil.COLOR_FONDO);
-        
-        JLabel lblVer = new JLabel("Ver:");
-        lblVer.setFont(ThemeUtil.FUENTE_NORMAL);
-        comboModo = new JComboBox<>(new String[]{"Actuales", "Historial"});
-        comboModo.setFont(ThemeUtil.FUENTE_NORMAL);
-        comboModo.addActionListener(e -> cargarDatos(comboModo.getSelectedItem().toString()));
-        
-        controles.add(lblVer);
-        controles.add(comboModo);
-        
-        topPanel.add(controles, BorderLayout.CENTER);
+        // ===== PANEL CON PESTAÑAS =====
+        tabsProductos = new JTabbedPane();
 
-        // Filtro de productos
-        filtroProductos = new FiltroPanel("Buscar productos por nombre...", this::aplicarFiltro);
-        topPanel.add(filtroProductos, BorderLayout.SOUTH);
+        // Pestaña 1: Actuales
+        JPanel panelActuales = crearPanelActuales();
+        tabsProductos.addTab("📦 Actuales", panelActuales);
 
-        add(topPanel, BorderLayout.NORTH);
+        // Pestaña 2: Historial
+        JPanel panelHistorial = crearPanelHistorial();
+        tabsProductos.addTab("📋 Historial", panelHistorial);
 
-        // Tabla de productos
-        tableModel = new DefaultTableModel(new String[]{"Nombre", "Cantidad", "Fecha Producción"}, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-        table = new JTable(tableModel);
-        ThemeUtil.aplicarEstiloTabla(table);
-        
-        // Configurar filtrado
-        FiltradorUtil.configurarFiltroColumnas(table, new String[]{"Nombre", "Cantidad", "Fecha Producción"});
-
-        JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-        add(scroll, BorderLayout.CENTER);
+        add(tabsProductos, BorderLayout.CENTER);
 
         // Panel inferior con botones
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         bottom.setBackground(ThemeUtil.COLOR_FONDO);
         bottom.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
         
-        JButton btnExport = new JButton("📤 Exportar CSV");
-        ThemeUtil.aplicarEstiloSecundario(btnExport);
-        
         JButton btnCerrar = new JButton("❌ Cerrar");
         ThemeUtil.aplicarEstiloSecundario(btnCerrar);
-        
-        bottom.add(btnExport);
-        bottom.add(btnCerrar);
-        
-        add(bottom, BorderLayout.SOUTH);
-
-        btnExport.addActionListener(e -> exportarCSV());
         btnCerrar.addActionListener(e -> dispose());
-    }
-
-    /** Carga los productos desde DataStore */
-    private void cargarDatos(String modo) {
-        tableModel.setRowCount(0);
         
-        if (modo.equals("Actuales")) {
-            // Cargar productos actuales con stock > 0
-            for (ProductoTerminado p : DataStore.productos) {
-                if (p.getCantidad() > 0) {
-                    Vector<Object> fila = new Vector<>();
-                    fila.add(p.getNombre());
-                    fila.add(p.getCantidad());
-                    fila.add(p.getFechaProduccion());
-                    tableModel.addRow(fila);
-                }
+        bottom.add(btnCerrar);
+        add(bottom, BorderLayout.SOUTH);
+    }
+
+    // ===== PESTAÑA 1: ACTUALES =====
+    private JPanel crearPanelActuales() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        panel.setBackground(ThemeUtil.COLOR_FONDO);
+
+        // Botón refrescar
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panelBotones.setBackground(ThemeUtil.COLOR_FONDO);
+        JButton btnRefrescar = new JButton("🔄 Refrescar");
+        ThemeUtil.aplicarEstiloSecundario(btnRefrescar);
+        btnRefrescar.addActionListener(e -> cargarProductosActuales());
+        panelBotones.add(btnRefrescar);
+        panel.add(panelBotones, BorderLayout.NORTH);
+
+        // Tabla de productos actuales
+        modelActuales = new DefaultTableModel(
+            new String[]{"Producto", "Cantidad", "Fecha Última Producción"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;  // Solo lectura
             }
-        } else {
-            // Cargar historial (todos los productos)
-            for (ProductoTerminado p : DataStore.productos) {
-                Vector<Object> fila = new Vector<>();
-                fila.add(p.getNombre());
-                fila.add(p.getCantidad());
-                fila.add(p.getFechaProduccion());
-                tableModel.addRow(fila);
-            }
-        }
+        };
+        tableActuales = new JTable(modelActuales);
+        tableActuales.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        ThemeUtil.aplicarEstiloTabla(tableActuales);
         
-        aplicarFiltro();
-        actualizarContador();
+        JScrollPane scrollActuales = new JScrollPane(tableActuales);
+        panel.add(scrollActuales, BorderLayout.CENTER);
+
+        return panel;
     }
 
-    /** Aplica filtro a la tabla */
-    private void aplicarFiltro() {
-        String filtro = filtroProductos.getTextoFiltro();
-        FiltradorUtil.aplicarFiltroTabla(table, filtro);
-        actualizarContador();
+    // ===== PESTAÑA 2: HISTORIAL =====
+    private JPanel crearPanelHistorial() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        panel.setBackground(ThemeUtil.COLOR_FONDO);
+
+        // Panel de filtros
+        JPanel panelFiltros = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        panelFiltros.setBackground(ThemeUtil.COLOR_FONDO);
+        
+        JLabel lblFiltro = new JLabel("Filtrar por Producto:");
+        lblFiltro.setFont(ThemeUtil.FUENTE_NORMAL);
+        panelFiltros.add(lblFiltro);
+        
+        comboProductosFiltro = new JComboBox<>();
+        comboProductosFiltro.setFont(ThemeUtil.FUENTE_NORMAL);
+        comboProductosFiltro.addItem("--- Todos ---");
+        comboProductosFiltro.addActionListener(e -> cargarHistorialProduccion());
+        panelFiltros.add(comboProductosFiltro);
+
+        btnRefrescarHistorial = new JButton("🔄 Refrescar");
+        ThemeUtil.aplicarEstiloSecundario(btnRefrescarHistorial);
+        btnRefrescarHistorial.addActionListener(e -> cargarHistorialProduccion());
+        panelFiltros.add(btnRefrescarHistorial);
+
+        panel.add(panelFiltros, BorderLayout.NORTH);
+
+        // Tabla de historial
+        modelHistorial = new DefaultTableModel(
+            new String[]{"Producto", "Cantidad Producida", "Fecha", "Lote"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                return false;  // Solo lectura
+            }
+        };
+        tableHistorial = new JTable(modelHistorial);
+        tableHistorial.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        ThemeUtil.aplicarEstiloTabla(tableHistorial);
+        
+        JScrollPane scrollHistorial = new JScrollPane(tableHistorial);
+        panel.add(scrollHistorial, BorderLayout.CENTER);
+
+        return panel;
     }
 
-    /** Actualiza contador de resultados */
-    private void actualizarContador() {
-        int total = DataStore.productos.size();
-        int filtrados = filtroProductos.getTextoFiltro().isEmpty() ? 
-            total : table.getRowCount();
-        filtroProductos.actualizarContador(total, filtrados);
+    // ===== CARGAR PRODUCTOS ACTUALES =====
+    private void cargarProductosActuales() {
+        modelActuales.setRowCount(0);  // Limpiar
+
+        // Llenar comboProductosFiltro también
+        comboProductosFiltro.removeAllItems();
+        comboProductosFiltro.addItem("--- Todos ---");
+
+        for (ProductoTerminado p : DataStore.getProductosTerminados()) {
+            modelActuales.addRow(new Object[]{
+                p.getNombre(),
+                p.getCantidad(),
+                p.getFechaProduccion() != null ? p.getFechaProduccion() : "N/A"
+            });
+            comboProductosFiltro.addItem(p.getNombre());
+        }
+
+        System.out.println("✅ Productos actuales cargados: " + modelActuales.getRowCount());
     }
 
-    /** Exporta los datos actuales de la tabla a un archivo CSV */
-    private void exportarCSV() {
-        try (FileWriter fw = new FileWriter("data/productos_terminados_export.csv");
-             PrintWriter pw = new PrintWriter(fw)) {
+    // ===== CARGAR HISTORIAL DE PRODUCCIÓN =====
+    private void cargarHistorialProduccion() {
+        modelHistorial.setRowCount(0);  // Limpiar
 
-            pw.println("Nombre,Cantidad,FechaProduccion");
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                pw.printf("\"%s\",%s,\"%s\"\n",
-                        tableModel.getValueAt(i, 0),
-                        tableModel.getValueAt(i, 1),
-                        tableModel.getValueAt(i, 2));
+        String filtroProducto = (String) comboProductosFiltro.getSelectedItem();
+        boolean filtrarPorProducto = filtroProducto != null && 
+                                     !filtroProducto.equals("--- Todos ---");
+
+        String sql = """
+            SELECT nombre_producto, cantidad, fecha, lote_asociado 
+            FROM historial_productos 
+            WHERE accion = 'Producción'
+        """;
+
+        if (filtrarPorProducto) {
+            sql += " AND nombre_producto = ? ";
+        }
+
+        sql += " ORDER BY fecha DESC LIMIT 500";
+
+        try (Connection conn = ConexionSQLite.conectar();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            if (filtrarPorProducto) {
+                ps.setString(1, filtroProducto);
             }
 
-            ConfirmDialogUtil.mostrarExito(this, "Exportación Exitosa", 
-                "Los datos se han exportado correctamente a: data/productos_terminados_export.csv");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                String nombreProducto = rs.getString("nombre_producto");
+                int cantidad = rs.getInt("cantidad");
+                String fecha = rs.getString("fecha");
+                String lote = rs.getString("lote_asociado");
 
-        } catch (Exception ex) {
-            ConfirmDialogUtil.mostrarError(this, "Error en Exportación", 
-                "Error al exportar datos: " + ex.getMessage());
+                modelHistorial.addRow(new Object[]{
+                    nombreProducto,
+                    cantidad,
+                    fecha != null ? fecha : "N/A",
+                    lote != null ? lote : "N/A"
+                });
+            }
+
+            if (modelHistorial.getRowCount() == 0) {
+                System.out.println("ℹ️  No hay registros de producción para mostrar");
+            } else {
+                System.out.println("✅ Historial de producción cargado: " + 
+                    modelHistorial.getRowCount() + " registros");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Error cargando historial de producción: " + e.getMessage());
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, 
+                "Error cargando historial: " + e.getMessage(),
+                "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    // ===== REFRESCAR TODAS LAS VISTAS =====
+    public void refrescarTodas() {
+        cargarProductosActuales();
+        cargarHistorialProduccion();
     }
 }

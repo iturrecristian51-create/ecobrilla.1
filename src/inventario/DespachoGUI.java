@@ -45,6 +45,9 @@ public class DespachoGUI extends JDialog {
     // Filtros
     private FiltroPanel filtroProductos;
     private FiltroPanel filtroDespachos;
+    
+    // Panel de productos terminados
+    private ProductosTerminadosPanel productosTerminadosPanel;
 
     // Variables para manejar el despacho actual
     private Despacho despachoActual;
@@ -242,6 +245,8 @@ public class DespachoGUI extends JDialog {
         panelDespachos.add(splitPane, BorderLayout.CENTER);
 
         tabsDespachos.addTab("Gestión de Despachos", panelDespachos);
+        productosTerminadosPanel = new ProductosTerminadosPanel();
+        tabsDespachos.addTab("Productos Terminados", productosTerminadosPanel);
         HistorialProductosPanel historialPanel = new HistorialProductosPanel();
         tabsDespachos.addTab("Historial Productos", historialPanel);
         add(tabsDespachos, BorderLayout.CENTER);
@@ -448,6 +453,12 @@ actualizarContadores();
         actualizarContadores();
     }
 
+    public void refreshProductosTerminados() {
+        if (productosTerminadosPanel != null) {
+            productosTerminadosPanel.refrescarTodas();
+        }
+    }
+
     // ===== MANEJO DEL DESPACHO ACTUAL =====
 
     private void crearNuevoDespacho() {
@@ -568,6 +579,7 @@ actualizarContadores();
             crearNuevoDespacho();
             refreshProductos();
             refreshDespachos();
+            refreshProductosTerminados();
 
             new VentanaFacturaGUI(this, despachoActual).setVisible(true);
 

@@ -238,6 +238,23 @@ public class ProduccionGUI extends JDialog {
             return;
         }
         
+        // ✅ PROBLEMA A+B: Validar que TODOS los insumos del lote existan en el stock actual
+        StringBuilder insumosInvalidos = new StringBuilder();
+        for (String nombreInsumo : loteEncontrado.getInsumosUsados().keySet()) {
+            if (DataStore.buscarInsumoPorNombre(nombreInsumo) == null) {
+                insumosInvalidos.append("- ").append(nombreInsumo).append("\n");
+            }
+        }
+        
+        if (insumosInvalidos.length() > 0) {
+            JOptionPane.showMessageDialog(this, 
+                "⚠️ Error: Los siguientes insumos ya no existen en el stock:\n" +
+                insumosInvalidos.toString() +
+                "\nNo puedes continuar este lote.\n" +
+                "Considera eliminar el lote e iniciar uno nuevo.");
+            return;
+        }
+        
         // Cargar el lote en loteActual
         loteActual = loteEncontrado;
         
@@ -260,7 +277,7 @@ public class ProduccionGUI extends JDialog {
         }
         
         JOptionPane.showMessageDialog(this, 
-            "Lote cargado: " + idLote + "\n" +
+            "✅ Lote cargado: " + idLote + "\n" +
             "Puedes seguir agregando insumos o cambiar la cantidad de unidades.");
     }
 
@@ -289,15 +306,9 @@ public class ProduccionGUI extends JDialog {
             modelInsumos.addRow(new Object[]{nombreInsumo, cantidad});
             txtCantInsumo.setText("");
 
-            // ✅ CORRECCIÓN 1: Guardar lote temporal en DataStore después de agregar el primer insumo
-            // Esto asegura que aunque se cierre la ventana sin hacer clic en "Finalizar",
-            // los insumos agregados no desaparezcan
-            if (loteActual.getInsumosUsados().size() == 1) {  // Primera vez que se agrega un insumo
-                DataStore.agregarLote(loteActual);
-                JOptionPane.showMessageDialog(this, 
-                    "Lote temporal guardado en el sistema con el primer insumo.\n" +
-                    "Puedes seguir agregando insumos o finalizar después.");
-            }
+            // ✅ CORRECCIÓN: Guardar SIEMPRE después de agregar insumo (no solo la primera vez)
+            DataStore.guardarLote(loteActual);
+            System.out.println("✅ Insumo '" + nombreInsumo + "' agregado. Lote guardado en BD.");
 
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Cantidad inválida.");
@@ -332,6 +343,7 @@ public class ProduccionGUI extends JDialog {
 
         if (despachoGUI != null) {
             despachoGUI.refreshProductos();
+            despachoGUI.refreshProductosTerminados();
         }
 
         JOptionPane.showMessageDialog(this, "Lote guardado como TERMINADO. Productos listos para despacho.");
@@ -367,6 +379,7 @@ public class ProduccionGUI extends JDialog {
             // Actualizar productos en despacho
             if (despachoGUI != null) {
                 despachoGUI.refreshProductos();
+                despachoGUI.refreshProductosTerminados();
             }
             
         } else {
@@ -376,6 +389,7 @@ public class ProduccionGUI extends JDialog {
     }
 }
 
+    // ✅ CORRECCIÓN 2: Nuevo método para eliminar insumo seleccionado de la tabla
     // ✅ CORRECCIÓN 2: Nuevo método para eliminar insumo seleccionado de la tabla
     private void eliminarInsumoSeleccionado() {
         if (loteActual == null) {
@@ -396,8 +410,13 @@ public class ProduccionGUI extends JDialog {
         boolean eliminado = loteActual.eliminarInsumoUsado(nombreInsumo);
         
         if (eliminado) {
+            // ✅ IMPORTANTE: Guardar lote después de eliminar PARA PERSISTIR EN BD
+            DataStore.guardarLote(loteActual);
+            
             // Eliminar de la tabla
             modelInsumos.removeRow(filaSeleccionada);
+            
+            System.out.println("✅ Insumo '" + nombreInsumo + "' eliminado. Stock devuelto a " + cantidad);
             JOptionPane.showMessageDialog(this, 
                 "Insumo '" + nombreInsumo + "' (x" + cantidad + ") eliminado.\n" +
                 "El stock ha sido devuelto automáticamente.");
@@ -444,11 +463,12 @@ public class ProduccionGUI extends JDialog {
     }
 
     // ✅ NUEVO MÉTODO: Actualizar tabla de insumos cuando se selecciona un producto
+    // ✅ IMPORTANTE: Esto TAMBIÉN carga los insumos en el lote actual y descuenta del stock
     private void actualizarTablaInsumos() {
         modelInsumos.setRowCount(0);  // ✅ Limpiar la tabla
         
         Producto productoSeleccionado = (Producto) comboProductos.getSelectedItem();
-        if (productoSeleccionado == null) {
+        if (productoSeleccionado == null || loteActual == null) {
             return;
         }
         
@@ -458,9 +478,37 @@ public class ProduccionGUI extends JDialog {
             return;
         }
         
-        // ✅ Cargar insumos en la tabla (editable la cantidad)
+        // ✅ Cargar insumos en la tabla Y agregar al lote (descuenta del stock)
         for (java.util.Map.Entry<String, Double> entry : insumos.entrySet()) {
-            modelInsumos.addRow(new Object[]{entry.getKey(), entry.getValue()});
+            String nombreInsumo = entry.getKey();
+            double cantidadReceta = entry.getValue();
+            
+            // ✅ VALIDAR: Solo agregar si el insumo existe en stock
+            Insumo insumoExistente = DataStore.buscarInsumoPorNombre(nombreInsumo);
+            if (insumoExistente == null) {
+                // Mostrar advertencia pero continuar
+                System.out.println("⚠️ ADVERTENCIA: Insumo '" + nombreInsumo + 
+                                   "' en la receta no existe en stock. Se cargará pero no se descontará.");
+                modelInsumos.addRow(new Object[]{nombreInsumo, cantidadReceta});
+            } else {
+                try {
+                    // ✅ IMPORTANTE: Agregar al lote actual y descontar del stock
+                    if (!loteActual.getInsumosUsados().containsKey(nombreInsumo)) {
+                        loteActual.agregarInsumoUsado(nombreInsumo, cantidadReceta);
+                        System.out.println("✅ Insumo '" + nombreInsumo + "' agregado al lote: " + cantidadReceta);
+                    }
+                    modelInsumos.addRow(new Object[]{nombreInsumo, cantidadReceta});
+                } catch (IllegalArgumentException ex) {
+                    // Si hay error de stock, mostrar advertencia
+                    JOptionPane.showMessageDialog(this, 
+                        "⚠️ Error: " + ex.getMessage() + "\n" +
+                        "Se cargará en la tabla pero NO se ha descontado del stock.");
+                    modelInsumos.addRow(new Object[]{nombreInsumo, cantidadReceta});
+                }
+            }
         }
+        
+        // ✅ Guardar lote después de cargar la receta
+        DataStore.guardarLote(loteActual);
     }
 }

@@ -1516,6 +1516,16 @@ stmt.execute("""
     // Método para registrar movimientos de productos terminados
     public static void registrarMovimientoProducto(String nombreProducto, String accion, 
                                                  int cantidad, String loteAsociado, String observacion) {
+        // Validar parámetros
+        if (nombreProducto == null || nombreProducto.trim().isEmpty()) {
+            System.err.println("❌ Error: nombreProducto no puede ser null o vacío");
+            return;
+        }
+        if (accion == null || accion.trim().isEmpty()) {
+            System.err.println("❌ Error: accion no puede ser null o vacío");
+            return;
+        }
+        
         String sql = """
             INSERT INTO historial_productos 
             (fecha, nombre_producto, accion, cantidad, lote_asociado, observacion)
@@ -1527,12 +1537,21 @@ stmt.execute("""
             ps.setString(1, nombreProducto);
             ps.setString(2, accion);
             ps.setInt(3, cantidad);
-            ps.setString(4, loteAsociado);
-            ps.setString(5, observacion);
-            ps.executeUpdate();
+            ps.setString(4, loteAsociado != null ? loteAsociado : "");
+            ps.setString(5, observacion != null ? observacion : "");
+            
+            int rowsAffected = ps.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                System.out.println("✅ Movimiento registrado en historial: " + nombreProducto + 
+                    " [" + accion + "] " + cantidad + " unidades");
+            } else {
+                System.err.println("⚠️ No se registró movimiento (0 filas afectadas)");
+            }
             
         } catch (SQLException e) {
             System.err.println("❌ Error registrando movimiento de producto: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

@@ -1,11 +1,11 @@
 package inventario;
 
+import java.awt.*;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
-import java.awt.*;
 import javax.swing.table.JTableHeader;
 
 /**
@@ -175,13 +175,13 @@ public class ThemeUtil {
         tabla.setShowGrid(true);
         tabla.setGridColor(COLOR_BORDE);
         tabla.setSelectionBackground(COLOR_PRIMARIO);
-        tabla.setSelectionForeground(Color.WHITE);
+        tabla.setSelectionForeground(Color.BLACK);
         
         // Header de la tabla
         JTableHeader header = tabla.getTableHeader();
         header.setFont(FUENTE_SUBTITULO);
         header.setBackground(COLOR_SECUNDARIO);
-        header.setForeground(Color.WHITE);
+        header.setForeground(Color.BLACK);
         header.setReorderingAllowed(false);
     }
     
@@ -230,7 +230,7 @@ public class ThemeUtil {
         UIManager.put("Table.background", Color.WHITE);
         UIManager.put("Table.gridColor", COLOR_BORDE);
         UIManager.put("Table.selectionBackground", COLOR_PRIMARIO);
-        UIManager.put("Table.selectionForeground", Color.WHITE);
+        UIManager.put("Table.selectionForeground", Color.BLACK);
         
     } catch (Exception e) {
             e.printStackTrace();

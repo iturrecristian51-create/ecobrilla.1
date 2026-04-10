@@ -1,9 +1,9 @@
 package inventario;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.print.*;
 import java.time.LocalDate;
+import javax.swing.*;
 
 /**
  * Panel de Rótulo de Producción — versión mejorada con estilo de ficha técnica,
@@ -58,7 +58,7 @@ public class RotuloPanel extends JPanel implements Printable {
         btnImprimir = new JButton("🖨 Imprimir Ficha");
         btnImprimir.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnImprimir.setBackground(new Color(0, 123, 255));
-        btnImprimir.setForeground(Color.WHITE);
+        btnImprimir.setForeground(Color.BLACK);
         btnImprimir.setFocusPainted(false);
         btnImprimir.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         btnImprimir.addActionListener(e -> imprimirRotulo());

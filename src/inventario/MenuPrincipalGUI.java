@@ -1,7 +1,7 @@
 package inventario;
 
-import javax.swing.*;
 import java.awt.*;
+import javax.swing.*;
 
 public class MenuPrincipalGUI extends JFrame {
 
@@ -44,11 +44,11 @@ public class MenuPrincipalGUI extends JFrame {
         
         JLabel titulo = new JLabel("Sistema de Inventario y Producción", JLabel.CENTER);
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        titulo.setForeground(Color.WHITE);
+        titulo.setForeground(Color.BLACK);
         
         JLabel subtitulo = new JLabel("ECOBRILLA SOLUCIONES S.A.S", JLabel.CENTER);
         subtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        subtitulo.setForeground(new Color(240, 240, 240));
+        subtitulo.setForeground(Color.BLACK);
         
         JPanel panelTitulos = new JPanel(new GridLayout(2, 1));
         panelTitulos.setBackground(ThemeUtil.COLOR_PRIMARIO);
@@ -66,7 +66,7 @@ public class MenuPrincipalGUI extends JFrame {
             JLabel lblUsuario = new JLabel("👤 " + DataStore.getUsuarioActual().getNombreUsuario() + 
                                          " (" + DataStore.getUsuarioActual().getRol() + ")");
             lblUsuario.setFont(ThemeUtil.FUENTE_PEQUEÑA);
-            lblUsuario.setForeground(Color.WHITE);
+            lblUsuario.setForeground(Color.BLACK);
             panelDerecho.add(lblUsuario);
             
             // === ÍCONO DE DESARROLLADOR (solo para desarrolladores) ===
@@ -176,7 +176,7 @@ public class MenuPrincipalGUI extends JFrame {
         boton.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 boton.setBackground(ThemeUtil.COLOR_PRIMARIO);
-                boton.setForeground(Color.WHITE);
+                boton.setForeground(Color.BLACK);
             }
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 boton.setBackground(Color.WHITE);

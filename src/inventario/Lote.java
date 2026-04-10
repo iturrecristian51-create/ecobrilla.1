@@ -101,13 +101,14 @@ public class Lote implements Serializable {
         
         Insumo ins = DataStore.buscarInsumoPorNombre(nombreInsumo);
         if (ins == null) {
-            return false;
+            throw new IllegalArgumentException("⚠️ El insumo '" + nombreInsumo + "' ya no existe en el stock. Elimínalo del lote.");
         }
         
         if (diferencia > 0) {
-            // Aumentó la cantidad: validar que haya stock
+            // Aumentó la cantidad: validar que haya stock disponible
             if (diferencia > ins.getCantidad()) {
-                throw new IllegalArgumentException("Stock insuficiente. Disponible: " + ins.getCantidad());
+                throw new IllegalArgumentException("❌ Stock insuficiente. Disponible: " + ins.getCantidad() + 
+                                                 ". Solicitado: " + diferencia);
             }
             // Reducir stock adicional
             DataStore.reducirStockInsumo(nombreInsumo, diferencia);
