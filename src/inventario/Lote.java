@@ -1,7 +1,6 @@
 package inventario;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -82,6 +81,44 @@ public class Lote implements Serializable {
             return true;
         }
         return false;
+    }
+
+    /**
+     * ✅ NUEVO: Actualizar cantidad de insumo existente (edición de tabla)
+     * Ajusta automáticamente el stock en DataStore
+     */
+    public boolean actualizarInsumoUsado(String nombreInsumo, double nuevaCantidad) {
+        if (!insumosUsados.containsKey(nombreInsumo)) {
+            return false;
+        }
+        
+        if (nuevaCantidad <= 0) {
+            return eliminarInsumoUsado(nombreInsumo);
+        }
+        
+        double cantidadAnterior = insumosUsados.get(nombreInsumo);
+        double diferencia = nuevaCantidad - cantidadAnterior;
+        
+        Insumo ins = DataStore.buscarInsumoPorNombre(nombreInsumo);
+        if (ins == null) {
+            return false;
+        }
+        
+        if (diferencia > 0) {
+            // Aumentó la cantidad: validar que haya stock
+            if (diferencia > ins.getCantidad()) {
+                throw new IllegalArgumentException("Stock insuficiente. Disponible: " + ins.getCantidad());
+            }
+            // Reducir stock adicional
+            DataStore.reducirStockInsumo(nombreInsumo, diferencia);
+        } else if (diferencia < 0) {
+            // Disminuyó la cantidad: devolver al stock
+            DataStore.aumentarStockInsumo(nombreInsumo, Math.abs(diferencia));
+        }
+        
+        // Actualizar en el lote
+        insumosUsados.put(nombreInsumo, nuevaCantidad);
+        return true;
     }
 
     /**

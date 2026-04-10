@@ -4,6 +4,8 @@ import java.awt.*;
 import java.util.List;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.event.TableModelListener;
+import javax.swing.event.TableModelEvent;
 
 public class ProduccionGUI extends JDialog {
     private Lote loteActual;
@@ -75,6 +77,57 @@ public class ProduccionGUI extends JDialog {
         JPanel center = new JPanel(new BorderLayout());
         center.setBorder(BorderFactory.createTitledBorder("Insumos del Lote Actual"));
         center.add(new JScrollPane(tInsumos), BorderLayout.CENTER);
+
+        // ✅ NUEVO: Listener para captar cambios en la edición de cantidad
+        modelInsumos.addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                if (e.getType() == TableModelEvent.UPDATE && e.getColumn() == 1) {  // Columna 'Cantidad'
+                    int fila = e.getFirstRow();
+                    String nombreInsumo = (String) modelInsumos.getValueAt(fila, 0);
+                    Object cantidadObj = modelInsumos.getValueAt(fila, 1);
+                    
+                    if (cantidadObj == null) return;
+                    
+                    double nuevaCantidad;
+                    try {
+                        if (cantidadObj instanceof Number) {
+                            nuevaCantidad = ((Number) cantidadObj).doubleValue();
+                        } else {
+                            nuevaCantidad = Double.parseDouble(cantidadObj.toString());
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(ProduccionGUI.this, 
+                            "Error: La cantidad debe ser un número válido");
+                        if (loteActual != null) {
+                            Double cantAnterior = loteActual.getInsumosUsados().get(nombreInsumo);
+                            modelInsumos.setValueAt(cantAnterior, fila, 1);
+                        }
+                        return;
+                    }
+                    
+                    try {
+                        if (loteActual != null) {
+                            loteActual.actualizarInsumoUsado(nombreInsumo, nuevaCantidad);
+                            
+                            // ✅ IMPORTANTE: Guardar cambios en la BD automáticamente
+                            DataStore.guardarLote(loteActual);
+                            
+                            System.out.println("✅ Insumo '" + nombreInsumo + "' actualizado a " + nuevaCantidad + 
+                                             ". Stock ajustado automáticamente.");
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        JOptionPane.showMessageDialog(ProduccionGUI.this, 
+                            "Error al editar cantidad: " + ex.getMessage());
+                        // Revertir al valor anterior
+                        if (loteActual != null) {
+                            Double cantAnterior = loteActual.getInsumosUsados().get(nombreInsumo);
+                            modelInsumos.setValueAt(cantAnterior, fila, 1);
+                        }
+                    }
+                }
+            }
+        });
 
         // Panel derecho (lista de lotes existentes)
         modelLotes = new DefaultTableModel(new String[]{"ID Lote", "Producto", "Fecha", "Estado", "Unidades"}, 0) {
