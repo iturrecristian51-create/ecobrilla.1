@@ -131,7 +131,7 @@ public class ProduccionGUI extends JDialog {
 
     private void crearLote() {
         String idLote = txtIdLote.getText().trim();
-        String producto = (String) comboProductos.getSelectedItem();
+        Producto producto = (Producto) comboProductos.getSelectedItem();  // ✅ Cast a Producto, no String
         String fecha = txtFecha.getText().trim();
 
         if (idLote.isEmpty() || producto == null) {
@@ -147,7 +147,7 @@ public class ProduccionGUI extends JDialog {
             }
         }
 
-        loteActual = new Lote(idLote, producto, fecha);
+        loteActual = new Lote(idLote, producto.getNombre(), fecha);  // ✅ Pasar producto.getNombre()
         modelInsumos.setRowCount(0);
         JOptionPane.showMessageDialog(this, "Lote creado temporalmente. Estado: EN PROCESO\n\nAhora agrega insumos.");
     }
@@ -191,7 +191,14 @@ public class ProduccionGUI extends JDialog {
         // Cargar los datos en el formulario
         txtIdLote.setText(loteActual.getIdLote());
         txtFecha.setText(loteActual.getFechaProduccion());
-        comboProductos.setSelectedItem(loteActual.getNombreProducto());
+        
+        // ✅ Buscar el Producto por nombre y establecerlo en el combo
+        for (Producto p : ListaProductos.obtenerProductos()) {
+            if (p.getNombre().equals(loteActual.getNombreProducto())) {
+                comboProductos.setSelectedItem(p);
+                break;
+            }
+        }
         
         // Cargar los insumos en la tabla
         modelInsumos.setRowCount(0);
