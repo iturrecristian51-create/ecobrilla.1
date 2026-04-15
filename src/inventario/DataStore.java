@@ -101,6 +101,8 @@ public class DataStore {
     // ✅ SEXTO: Inicializar configuración (TU CÓDIGO ORIGINAL)
     inicializarConfiguracionSistema();
     
+    asegurarUsuariosPorDefectoEnMemoria();
+
     // ✅ Mostrar resumen final (TU CÓDIGO ORIGINAL)
     System.out.println("=== RESUMEN DE INICIALIZACIÓN ===");
     System.out.println("📊 Usuarios: " + usuarios.size());
@@ -109,6 +111,16 @@ public class DataStore {
     System.out.println("📊 Productos: " + productos.size());
     System.out.println("📊 Despachos: " + despachos.size());
     System.out.println("✅ Sistema inicializado correctamente");
+}
+
+private static void asegurarUsuariosPorDefectoEnMemoria() {
+    if (!usuarios.isEmpty()) {
+        return;
+    }
+
+    System.err.println("⚠️ No fue posible cargar usuarios desde SQLite. Se usarán usuarios por defecto en memoria.");
+    usuarios.add(new Usuario("admin", "admin123", "Administrador"));
+    usuarios.add(new Usuario("dev", "dev123", "Desarrollador"));
 }
 
 // === MÉTODOS NUEVOS PARA MIGRACIÓN (se añaden a la clase DataStore) ===
@@ -849,20 +861,24 @@ stmt.execute("""
     }
 
     private static void cargarUsuarios() {
-        usuarios.clear();
         String sql = "SELECT * FROM usuarios";
+        List<Usuario> usuariosLeidos = new ArrayList<>();
+
         try (Connection conn = ConexionSQLite.conectar();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
+
             while (rs.next()) {
                 Usuario usuario = new Usuario(
                     rs.getString("nombre_usuario"),
                     rs.getString("contrasena"),
                     rs.getString("rol")
                 );
-                usuarios.add(usuario);
+                usuariosLeidos.add(usuario);
             }
+
+            usuarios.clear();
+            usuarios.addAll(usuariosLeidos);
             System.out.println("✅ Usuarios cargados: " + usuarios.size());
         } catch (SQLException e) {
             System.err.println("❌ Error cargando usuarios: " + e.getMessage());
